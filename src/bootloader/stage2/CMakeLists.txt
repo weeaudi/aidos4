@@ -1,0 +1,1 @@
+message(STATUS "Configuring Bootloader Stage 2")
