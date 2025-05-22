@@ -3,7 +3,7 @@ bits 16         ; We are in 16-bit real mode
 org 0x7C00      ; BIOS loads bootloader at this address
 
 start:
-    mov ax, 0x07C0  ; Set up data segment
+    mov ax, 0  ; Set up data segment
     mov ds, ax
     mov es, ax
 
