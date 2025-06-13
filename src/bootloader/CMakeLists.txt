@@ -1,4 +1,4 @@
-project(Bootloader LANGUAGES ASM)
+project(Bootloader LANGUAGES ASM_NASM)
 
 message(STATUS "Configuring Bootloader Subproject")
 
