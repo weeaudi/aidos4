@@ -1,30 +1,265 @@
-bits 16         ; We are in 16-bit real mode
+bits 16                                             ; We are in 16-bit real mode
+global start
 
-org 0x7C00      ; BIOS loads bootloader at this address
+section .fsjump
+    jmp short start
+    nop
 
+;
+;   This is just here for placeholders.
+;   Example for a 1.44MB floppy
+;
+section .fsheaders
+    bdb_oem:                    db 'MSWIN4.1'       ; OEM Identifier (8 bytes)
+    bdb_bytes_per_sector:       dw 512              ; Bytes per sector (2 bytes)
+    bdb_sectors_per_cluster:    db 1                ; Sectors per cluster (1 byte)
+    bdb_reserved_sectors:       dw 19               ; Reserved sectors (2 bytes)
+    bdb_fat_count:              db 2                ; Number of FATs (1 byte)
+    bdb_dir_entries_count:      dw 0E0h             ; Directory entries count (2 bytes)
+    bdb_total_sectors:          dw 2880             ; Total sectors (2 bytes) (1.44MB floppy)
+    bdb_media_descriptor:       db 0F0h             ; Media descriptor (1 byte, F0h = 3.5" floppy)
+    bdb_sectors_per_fat:        dw 9                ; Sectors per FAT (2 bytes)
+    bdb_sectors_per_track:      dw 18               ; Sectors per track (2 bytes)
+    bdb_heads:                  dw 2                ; Number of heads (2 bytes)
+    bdb_hidden_sectors:         dd 0                ; Hidden sectors (4 bytes)
+    bdb_large_sector_count:     dd 0                ; Large sector count (4 bytes)
+
+    ebr_drive_number:           db 0                ; Drive number (0x00 = floppy, 0x80 = hard drive)
+    ebr_reserved:               db 0                ; Reserved (1 byte)
+    ebr_signature:              db 29h              ; Extended boot signature (1 byte)
+    ebr_volume_id:              db 'AIDC'           ; Volume ID (4 bytes, serial number not significant)
+    ebr_volume_label:           db 'AID OS V4  '    ; Volume label (11 bytes, padded with spaces)
+    ebr_system_id:              db 'FAT12   '       ; File system type (8 bytes, padded with spaces)
+
+section .text
 start:
-    mov ax, 0  ; Set up data segment
+    mov ax, 0                                       ; Set up data segment
     mov ds, ax
     mov es, ax
 
-    mov si, message ; Pointer to message
-print_char:
-    lodsb           ; Load byte from [SI] into AL, and increment SI
-    or al, al       ; Check if AL is zero (end of string)
-    jz halt         ; If zero, jump to halt
-    mov ah, 0x0E    ; BIOS teletype output function
-    mov bh, 0x00    ; Page number
-    mov bl, 0x07    ; White text on black background
-    int 0x10        ; Call BIOS video service
-    jmp print_char  ; Repeat for next character
+    mov sp, 0x7C00                                  ; Setup stack to where we are located.
 
+    mov [boot_drive], dl                            ; move boot drive to memory
+
+    mov si, init_msg                                ; Pointer to message
+
+    call print_char
+
+    call disk_reset
+
+    call check_disk_extended
+
+    ; read the second sector which should contain importiant info about stage 2
+    mov eax, 1
+    mov cl, 1
+    mov bx, buffer
+
+    call disk_read
+
+    jmp halt
+    
 halt:
-    cli             ; Clear interrupts
-    hlt             ; Halt the processor
+    cli                                             ; Clear interrupts
+    hlt                                             ; Halt the processor
 
-message:
-    db "Bootloader Stage 1 Loaded!", 0 ; Null-terminated string
+;
+; Param
+; - si[in] - Address to null terminated string 
+;
+print_char:
+    lodsb                                           ; Load byte from [SI] into AL, and increment SI
+    or al, al                                       ; Check if AL is zero (end of string)
+    jz .done                                        ; If zero, jump to halt
+    mov ah, 0x0E                                    ; BIOS teletype output function
+    mov bh, 0x00                                    ; Page number
+    mov bl, 0x07                                    ; White text on black background
+    int 0x10                                        ; Call BIOS video service
+    jmp print_char                                  ; Repeat for next character
+.done:
+    ret
 
-; Padding and magic number
-times 510 - ($-$$) db 0   ; Pad remainder of 510 bytes with 0
-dw 0xAA55                 ; Boot signature
+disk_reset:
+    push ax
+    push dx
+
+    xor ax, ax                                      ; ax = 0; disk reset on int 13h
+
+    mov dl, [boot_drive]                            ; dl = boot drive; drive to be reset
+
+    int 13h
+
+    pop dx
+    pop ax
+
+    ret
+
+check_disk_extended:
+    push ax
+    push bx
+    push cx
+    push dx
+
+    stc
+    mov ah, 41h
+    mov bx, 55AAh
+    int 13h
+
+    jc .no_disk_extended
+    cmp bx, 0xAA55
+    jne .no_disk_extended
+
+    ; Extended disk functions are present.
+    mov byte [disk_extended_present], 1
+    jmp .after_disk_check
+
+.no_disk_extended:
+    mov byte [disk_extended_present], 0
+
+.after_disk_check:
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+;
+; Param
+; - ax - contains the LBA.
+; Output
+; - cx - holds the sector number (low 6 bits) and the high bits of cylinder,
+; - ch - holds the lower 8 bits of the cylinder,
+; - dh - contains the head number.
+;-------------------------------------------------------------------------
+lba_to_chs:
+    push ax
+    push dx
+
+    xor dx, dx                         ; Clear DX for division
+    div word [bdb_sectors_per_track]   ; AX = LBA / sectors_per_track, DX = remainder
+    inc dx                             ; Sector number = remainder + 1
+    mov cx, dx                         ; Store sector in CX
+
+    xor dx, dx                         ; Clear DX for next division
+    div word [bdb_heads]               ; AX = cylinder, DX = head
+    mov dh, dl                         ; Head in DH
+    mov ch, al                         ; Lower 8 bits of cylinder in CH
+    shl ah, 6
+    or cl, ah                          ; Merge upper 2 bits of cylinder into CL
+
+    pop dx
+    pop ax
+    ret
+
+;
+; Param
+; - eax - LBA address of the sector(s) to read.
+; - cl - Number of sectors to read (up to 128).
+; - dl - Drive number.
+; - es:bx - Destination memory address for the data.
+;
+disk_read:
+    disk_read:
+    pusha
+
+    cmp byte [disk_extended_present], 1
+    jne .no_disk_extensions
+
+    mov byte [extension_dap.size], 10h
+    mov [extension_dap.address], eax
+    mov [extension_dap.segment], es
+    mov [extension_dap.offset], bx
+    mov [extension_dap.count], cl
+
+    mov ah, 0x42
+    mov si, extension_dap
+    mov di, 3
+
+.ext_retry:
+    pusha                                           ; Save all registers (BIOS call may modify them)
+    stc                                             ; Set carry flag (some BIOSes require this)
+    int 13h                                         ; Extended disk read
+    jnc .done                                       ; Jump if successful (carry flag clear)
+    popa
+    call disk_reset
+    dec di
+    cmp di, 0
+    jne .ext_retry
+    jmp floppy_error
+
+.no_disk_extensions:
+    mov esi, eax                                    ; save lba to esi
+    mov di, cx                                      ; number of sectors to di
+
+.outer_loop:
+    mov eax, esi
+    call lba_to_chs                                 ; convert each lba to chs format
+    mov al, 1                                       ; read one at a time
+
+    push di
+    mov di, 3                                       ; retry count
+    mov ah, 02h
+
+.innter_loop:
+    pusha
+    stc
+    int 13h
+    jnc .inner_done
+    popa
+    dec di
+    cmp di, 0
+    jne .innter_loop
+    jmp floppy_error
+
+.inner_done:
+    popa
+
+    pop di
+    cmp di, 0
+    je .done
+
+    inc esi
+    dec di
+
+    mov ax, es
+    add ax, 32
+    mov es, ax
+    jmp .outer_loop
+
+.done:
+    popa
+    ret
+
+floppy_error:
+    mov si, init_msg
+    call print_char
+    cli
+    hlt
+
+section .data
+disk_extended_present: db 0                         ; default to false
+
+section .rodata
+init_msg: db "Bootloader Stage 1 Loaded!", 0        ; Initial message
+flpy_err: db "ERR: floppy", 0                       ; Floppy error
+
+section .bios_footer
+
+section .stage2_info
+
+stage_2_info:
+    .size:      db 10                               ; size in sectors to read
+    .location:  dq 1                                ; lba of stage 2
+    .load:      dw 1                                ; address to load stage 2 into        
+    .start:     dw 1                                ; address to jump to
+
+section .bss
+boot_drive: resb 1
+
+extension_dap:
+    .size:      resb 1
+    .reserved:  resb 1
+    .count:     resb 2
+    .offset:    resb 2
+    .segment:   resb 2
+    .address:   resb 8
+
+buffer: resb 512

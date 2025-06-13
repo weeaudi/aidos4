@@ -1,0 +1,6 @@
+{
+  "qemu-gdb-debug.startQemuCommand": "qemu-system-x86_64 -fda build/src/bootloader/stage1/boot_stage1 -S -gdb tcp::1234",
+  "qemu-gdb-debug.serverAddress": "localhost:1234",
+  "qemu-gdb-debug.gdbPath": "/usr/bin/gdb",
+  "qemu-gdb-debug.executablePath": "${workspaceFolder}/build/src/bootloader/stage1/boot_stage1_debug"
+}

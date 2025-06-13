@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.15) # A reasonable minimum version
 
 project(MyOS LANGUAGES C CXX ASM_NASM)
 
-set(CMAKE_ASM_NASM_SOURCE_FILE_EXTENSIONS asm)
 enable_language(ASM_NASM)
+set(CMAKE_ASM_NASM_FLAGS_DEBUG "-g -F dwarf")
 
 # set(CMAKE_ASM_NASM_OBJECT_FORMAT bin) # Default to raw binary if not specified otherwise by target
 
