@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.15) # A reasonable minimum version
 
 project(MyOS LANGUAGES C CXX ASM_NASM)
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/check_toolchain.cmake)
+
 enable_language(ASM_NASM)
 set(CMAKE_ASM_NASM_FLAGS_DEBUG "-g -F dwarf")
 
