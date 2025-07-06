@@ -1,5 +1,9 @@
 bits 16                                             ; We are in 16-bit real mode
 global start
+global stage_2_info
+global print_char
+
+extern __stage2_info_start
 
 section .fsjump
     jmp short start
@@ -52,9 +56,18 @@ start:
     ; read the second sector which should contain importiant info about stage 2
     mov eax, 1
     mov cl, 1
-    mov bx, buffer
+    mov bx, __stage2_info_start
 
     call disk_read
+
+    mov eax, [stage_2_info.location]
+    mov cl,  [stage_2_info.size]
+    mov bx,  [stage_2_info.load]
+
+    call disk_read
+
+    mov eax, [stage_2_info.start]
+    jmp eax
 
     jmp halt
     
@@ -159,6 +172,7 @@ lba_to_chs:
 disk_read:
     disk_read:
     pusha
+    push es
 
     cmp byte [disk_extended_present], 1
     jne .no_disk_extensions
@@ -225,6 +239,7 @@ disk_read:
     jmp .outer_loop
 
 .done:
+    pop es
     popa
     ret
 
@@ -238,18 +253,18 @@ section .data
 disk_extended_present: db 0                         ; default to false
 
 section .rodata
-init_msg: db "Bootloader Stage 1 Loaded!", 0        ; Initial message
-flpy_err: db "ERR: floppy", 0                       ; Floppy error
+init_msg: db "Bootloader Stage 1 Loaded!", 0xA, 0xD, 0          ; Initial message
+flpy_err: db "ERR: floppy", 0xA, 0xD, 0                         ; Floppy error
 
 section .bios_footer
 
 section .stage2_info
 
 stage_2_info:
-    .size:      db 10                               ; size in sectors to read
-    .location:  dq 1                                ; lba of stage 2
-    .load:      dw 1                                ; address to load stage 2 into        
-    .start:     dw 1                                ; address to jump to
+    .size:      db "A"                            ; size in sectors to read
+    .location:  dq "IDCRAFTO"                     ; lba of stage 2
+    .load:      dw "S "                           ; address to load stage 2 into        
+    .start:     dw "v4"                           ; address to jump to
 
 section .bss
 boot_drive: resb 1

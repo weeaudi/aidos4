@@ -11,7 +11,7 @@ set_source_files_properties(${BOOTLOADER_STAGE1_ASM_SOURCE} PROPERTIES LANGUAGE 
 add_executable(${BOOTLOADER_STAGE1_NAME} ${BOOTLOADER_STAGE1_ASM_SOURCE})
 
 set_target_properties(${BOOTLOADER_STAGE1_NAME} PROPERTIES
-    LINK_FLAGS "-T ${LINKER_SCRIPT} -nostdlib"
+    LINK_FLAGS "-T ${LINKER_SCRIPT} -nostdlib -Wl,-Map=stage1.map"
     LINKER_LANGUAGE C
 )
 
@@ -25,7 +25,7 @@ if(CMAKE_BUILD_TYPE)
         add_executable(${DEBUG_BOOTLOADER_STAGE1_NAME} ${BOOTLOADER_STAGE1_ASM_SOURCE})
 
         set_target_properties(${DEBUG_BOOTLOADER_STAGE1_NAME} PROPERTIES
-            LINK_FLAGS "-T ${DEBUG_LINKER_SCRIPT} -nostdlib -no-pie -Wl,--build-id=none"
+            LINK_FLAGS "-T ${DEBUG_LINKER_SCRIPT} -nostdlib -no-pie -Wl,--build-id=none,--no-warn-rwx-segments,-Map=\"stage1_debug.map\""
             LINKER_LANGUAGE C
         )
 

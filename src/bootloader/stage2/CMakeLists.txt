@@ -1,1 +1,18 @@
-message(STATUS "Configuring Bootloader Stage 2")
+project(Stage1 LANGUAGES ASM_NASM)
+
+set(CMAKE_ASM_NASM_OBJECT_FORMAT elf32)
+
+set(BOOTLOADER_STAGE2_ASM_SOURCE main.asm)
+set(BOOTLOADER_STAGE2_NAME boot_stage2)
+set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/linker.ld)
+
+set_source_files_properties(${BOOTLOADER_STAGE2_ASM_SOURCE} PROPERTIES LANGUAGE ASM_NASM)
+
+add_executable(${BOOTLOADER_STAGE2_NAME} ${BOOTLOADER_STAGE2_ASM_SOURCE})
+
+set_target_properties(${BOOTLOADER_STAGE2_NAME} PROPERTIES
+    LINK_FLAGS "-T ${LINKER_SCRIPT} -nostdlib -no-pie -Wl,-Map=stage2.map,--no-warn-rwx-segments"
+    LINKER_LANGUAGE C
+)
+
+message(STATUS "Configuring Bootloader Stage 2: ${BOOTLOADER_STAGE2_ASM_SOURCE} -> ${BOOTLOADER_STAGE2_NAME}")
