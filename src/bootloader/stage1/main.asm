@@ -191,8 +191,8 @@ disk_read:
     pusha                                           ; Save all registers (BIOS call may modify them)
     stc                                             ; Set carry flag (some BIOSes require this)
     int 13h                                         ; Extended disk read
-    jnc .done                                       ; Jump if successful (carry flag clear)
     popa
+    jnc .done                                       ; Jump if successful (carry flag clear)
     call disk_reset
     dec di
     cmp di, 0

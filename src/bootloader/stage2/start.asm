@@ -10,8 +10,9 @@ start:
     mov si, text
     call print_char
 
-    cli
+hang:
     hlt
+    jmp hang
 
 ;
 ; Param
@@ -31,3 +32,5 @@ print_char:
 
 section .rodata
 text: db "HELLO FROM STAGE2 OF THE BOOTLOADER", 0xA, 0xD, 0
+rsdp_sig: db 'RSD PTR '
+found: db "YA"
