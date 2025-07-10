@@ -82,7 +82,7 @@ halt:
 print_char:
     lodsb                                           ; Load byte from [SI] into AL, and increment SI
     or al, al                                       ; Check if AL is zero (end of string)
-    jz .done                                        ; If zero, jump to halt
+    jz .done                                        ; If zero, return
     mov ah, 0x0E                                    ; BIOS teletype output function
     mov bh, 0x00                                    ; Page number
     mov bl, 0x07                                    ; White text on black background
@@ -170,7 +170,6 @@ lba_to_chs:
 ; - es:bx - Destination memory address for the data.
 ;
 disk_read:
-    disk_read:
     pusha
     push es
 
@@ -212,7 +211,7 @@ disk_read:
     mov di, 3                                       ; retry count
     mov ah, 02h
 
-.innter_loop:
+.inner_loop:
     pusha
     stc
     int 13h
@@ -220,7 +219,7 @@ disk_read:
     popa
     dec di
     cmp di, 0
-    jne .innter_loop
+    jne .inner_loop
     jmp floppy_error
 
 .inner_done:
@@ -244,7 +243,7 @@ disk_read:
     ret
 
 floppy_error:
-    mov si, init_msg
+    mov si, flpy_err
     call print_char
     cli
     hlt
