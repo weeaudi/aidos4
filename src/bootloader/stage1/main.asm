@@ -53,12 +53,21 @@ start:
 
     call check_disk_extended
 
+    call disk_get_geometry
+
     ; read the second sector which should contain importiant info about stage 2
+
+    mov ax, 0
+    mov es, ax
+
     mov eax, 1
     mov cl, 1
     mov bx, __stage2_info_start
 
     call disk_read
+
+    mov ax, 0
+    mov es, ax
 
     mov eax, [stage_2_info.location]
     mov cl,  [stage_2_info.size]
@@ -106,6 +115,38 @@ disk_reset:
 
     ret
 
+disk_get_geometry:
+    push ax
+    push bx
+    push cx
+    push dx
+
+    mov ah, 08h
+    mov dl, [boot_drive]
+    int 13h
+
+    jc .fail  ; If BIOS call fails, skip (leave defaults)
+
+    ; CX: bits 6-0   = sector number (1-63)
+    ;     bits 13-8  = cylinder low bits
+    ;     bits 7     = high bit of cylinder high bits
+    ; DX: high byte  = head count (0-based)
+
+    and cx, 0x3F        ; Sector count is in bits 0–5 of CX
+    mov [bdb_sectors_per_track], cx
+
+    mov dx, dx
+    shr dx, 8
+    inc dx              ; head count is 0-based, so add 1
+    mov [bdb_heads], dx
+
+.fail:
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
 check_disk_extended:
     push ax
     push bx
@@ -122,11 +163,12 @@ check_disk_extended:
     jne .no_disk_extended
 
     ; Extended disk functions are present.
-    mov byte [disk_extended_present], 1
+    mov byte [disk_extended_present], 0
     jmp .after_disk_check
 
 .no_disk_extended:
     mov byte [disk_extended_present], 0
+    
 
 .after_disk_check:
     pop dx
@@ -144,21 +186,68 @@ check_disk_extended:
 ;-------------------------------------------------------------------------
 lba_to_chs:
     push ax
+    push bx
+    push si
+
+    ; Save LBA
+    mov bx, ax             ; BX = LBA
+
+    ; Load SPT and HPC
+    mov si, [bdb_sectors_per_track]
+    mov cx, si             ; CX = SPT
+
+    mov si, [bdb_heads]
+    mov dx, si             ; DX = HPC
+
+    ; -----------------------
+    ; Cylinder = LBA / (HPC * SPT)
+    ; -----------------------
+    mov ax, dx             ; AX = HPC
+    mul cx                 ; DX:AX = HPC * SPT
+    ; Assume DX = 0 → result in AX
+    xchg ax, si            ; SI = HPC * SPT
+
+    mov ax, bx             ; AX = LBA
+    xor dx, dx
+    div si                 ; AX = Cylinder
+    mov si, ax             ; Save Cylinder in SI
+
+    ; -----------------------
+    ; Head = (LBA / SPT) % HPC
+    ; -----------------------
+    mov ax, bx             ; AX = LBA
+    xor dx, dx
+    div cx                 ; AX = LBA / SPT, DX = LBA % SPT
+    ;xchg ax, dx            ; AX = remainder, DX = quotient
+    xor dx, dx
+    div word [bdb_heads]   ; AX = quotient, DX = remainder = head
+    mov dh, dl             ; DH = head
     push dx
 
-    xor dx, dx                         ; Clear DX for division
-    div word [bdb_sectors_per_track]   ; AX = LBA / sectors_per_track, DX = remainder
-    inc dx                             ; Sector number = remainder + 1
-    mov cx, dx                         ; Store sector in CX
-
-    xor dx, dx                         ; Clear DX for next division
-    div word [bdb_heads]               ; AX = cylinder, DX = head
-    mov dh, dl                         ; Head in DH
-    mov ch, al                         ; Lower 8 bits of cylinder in CH
-    shl ah, 6
-    or cl, ah                          ; Merge upper 2 bits of cylinder into CL
+    ; -----------------------
+    ; Sector = (LBA % SPT) + 1
+    ; -----------------------
+    mov ax, bx             ; AX = original LBA
+    xor dx, dx
+    div cx                 ; DX = LBA % SPT
+    mov cl, dl             ; CL = LBA % SPT
+    inc cl                 ; Sector = (LBA % SPT) + 1
+    and cl, 0x3F           ; Keep only bits 0–5
 
     pop dx
+
+    ; -----------------------
+    ; Encode Cylinder
+    ; -----------------------
+    mov ax, si             ; AX = Cylinder
+    mov ch, al             ; CH = low 8 bits
+    shr ax, 8              ; AL = high 2 bits
+    and al, 0x03
+    shl al, 6              ; Move to bits 6–7
+    or cl, al              ; Combine into CL
+
+    pop si
+    pop bx
     pop ax
     ret
 
@@ -200,6 +289,7 @@ disk_read:
 
 .no_disk_extensions:
     mov esi, eax                                    ; save lba to esi
+    xor ch, ch
     mov di, cx                                      ; number of sectors to di
 
 .outer_loop:
@@ -207,12 +297,14 @@ disk_read:
     call lba_to_chs                                 ; convert each lba to chs format
     mov al, 1                                       ; read one at a time
 
+    dec di
     push di
     mov di, 3                                       ; retry count
     mov ah, 02h
 
 .inner_loop:
     pusha
+    mov dl, [boot_drive]
     stc
     int 13h
     jnc .inner_done
@@ -230,7 +322,6 @@ disk_read:
     je .done
 
     inc esi
-    dec di
 
     mov ax, es
     add ax, 32

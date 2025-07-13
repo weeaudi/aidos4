@@ -9,11 +9,11 @@ set(BOOTLOADER_STAGE2_NAME boot_stage2)
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/linker.ld)
 
 set_source_files_properties(${BOOTLOADER_STAGE2_C_SOURCE} PROPERTIES
-        COMPILE_FLAGS "-ffreestanding -fno-exceptions -fno-rtti"
+        COMPILE_FLAGS "-ffreestanding -fno-exceptions -fno-rtti -I${CMAKE_CURRENT_SOURCE_DIR} -fno-use-cxa-atexit"
 )
 
 set_source_files_properties(${BOOTLOADER_STAGE2_CXX_SOURCE} PROPERTIES
-        COMPILE_FLAGS "-ffreestanding -fno-exceptions -fno-rtti"
+        COMPILE_FLAGS "-ffreestanding -fno-exceptions -fno-rtti -I${CMAKE_CURRENT_SOURCE_DIR} -fno-use-cxa-atexit"
 )
 
 foreach(src ${BOOTLOADER_STAGE2_ASM_SOURCE})
@@ -99,5 +99,12 @@ target_link_options(${BOOTLOADER_STAGE2_NAME} PRIVATE
 set(CMAKE_CXX_LINK_EXECUTABLE
     "<CMAKE_CXX_COMPILER> <FLAGS> <CMAKE_CXX_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> ${LINK_LIBRARIES} ${CRTEND_OBJ} ${CRTN_OBJ} -o <TARGET>"
 )
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_custom_command(TARGET ${BOOTLOADER_STAGE2_NAME} POST_BUILD
+        COMMAND ${CMAKE_STRIP} $<TARGET_FILE:${BOOTLOADER_STAGE2_NAME}>
+        COMMENT "Stripping symbols from release binary"
+    )
+endif()
 
 message(STATUS "Configuring Bootloader Stage 2: ${STAGE2_SRC} -> ${BOOTLOADER_STAGE2_NAME}")

@@ -2,26 +2,11 @@ bits 16
 
 global start
 
-extern __bss_start
-extern __end
-
 extern start16_32
 
 section .text
 start:
     mov sp, 0xA000
-
-    mov si, __bss_start        ; start of BSS
-    mov di, __end              ; end of BSS
-
-.clear_bss:
-    cmp si, di
-    jae .done
-    mov byte [si], 0
-    inc si
-    jmp .clear_bss
-
-.done:
 
     mov si, text
     call print_char
@@ -55,7 +40,50 @@ start:
     mov cx, [boot_info.mem_map_count]   ; total entries
     mov si, boot_info.mem_map            ; pointer to entries
 
-    mov dx, 0                           ; line counter
+    ; Load mem_map_count into CX
+    mov ax, [boot_info.mem_map_count]
+    mov cx, ax            ; loop counter = number of entries
+
+    mov bx, boot_info.mem_map ; segment of mem_map  
+
+.loop_start:
+    ; Print "Base: 0x"
+    mov si, base_str
+    call print_char
+
+    ; Print 64-bit base address (8 bytes)
+    mov si, bx            ; offset of entry in mem_map
+    call print_hex64      ; DS:SI points to base addr
+
+    add bx, 8             ; move offset to length field
+
+    ; Print " Len: 0x"
+    mov si, len_str
+    call print_char
+
+    mov si, bx            ; offset points to length field
+    call print_hex64      ; print 64-bit length
+
+    add bx, 8             ; move offset to type field
+
+    ; Print " Type: 0x"
+    mov si, type_str
+    call print_char
+
+    ; type field is 4 bytes (32-bit)
+    mov eax, 0
+    mov ax, word [ds:bx]      ; load lower 16 bits of type
+    mov dx, word [ds:bx+2]    ; load upper 16 bits
+    shl edx, 16
+    or eax, edx               ; eax = full 32-bit type
+    call print_hex32
+
+    add bx, 8                 ; move to next entry (total 24 bytes per entry)
+
+    ; Call newline function here instead of printing newline string
+    call newline
+
+    loop .loop_start
 
     call start16_32
 
@@ -70,6 +98,12 @@ hang:
 ; - si[in] - Address to null terminated string 
 ;
 print_char:
+
+    push ax
+    push bx
+
+.loop:
+
     lodsb
     or al, al
     jz .done
@@ -77,16 +111,28 @@ print_char:
     mov bh, 0x00
     mov bl, 0x07
     int 0x10
-    jmp print_char
+    jmp .loop
 .done:
+
+    pop bx
+    pop ax
+
     ret
 
 newline:
+
+    push ax
+    push bx
+
     mov ah, 0x0E
     mov al, 0x0D
     int 0x10
     mov al, 0x0A
     int 0x10
+
+    pop bx
+    pop ax
+
     ret
 
 
@@ -134,7 +180,7 @@ print_hex32:
 ; DS:SI points to 8-byte value (low dword first)
 print_hex64:
     push si
-    push ax
+    push eax
     push dx
 
     ; Print high 32 bits
@@ -150,7 +196,7 @@ print_hex64:
     call print_hex32          ; print low 32 bits
 
     pop dx
-    pop ax
+    pop eax
     pop si
     ret
 
@@ -160,6 +206,10 @@ print_hex64:
 ; - al[in] - lower 4 bits are the hex digit
 ;
 print_hex_digit:
+
+    push ax
+    push bx
+
     and al, 0x0F
     cmp al, 10
     jl .digit
@@ -172,6 +222,10 @@ print_hex_digit:
     mov bh, 0x00
     mov bl, 0x07
     int 0x10
+
+    pop bx
+    pop ax
+
     ret
 
 
@@ -399,9 +453,9 @@ ebda_msg: db "Getting EBDA data... Address: 0x", 0
 rsdp_msg: db "Getting RSDP address... Address: 0x", 0
 mem_map_msg: db "Getting Memory Map... Count: ", 0
 mem_map_msg2: db " At 0x", 0
-base_label: db "Base: ", 0
-len_label:  db " Len: ", 0
-type_label: db " Type: ", 0
+base_str: db 'Base: 0x',0
+len_str:  db ' Len: 0x',0
+type_str: db ' Type: 0x',0
 
 rsdp_sig: db "RSD PTR ", 0
 

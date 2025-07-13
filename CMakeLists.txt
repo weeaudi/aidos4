@@ -20,7 +20,6 @@ ExternalProject_Add(
   INSTALL_COMMAND make install
   DOWNLOAD_EXTRACT_TIMESTAMP true
   BUILD_ALWAYS OFF
-  BUILD_BYPRODUCTS "${CMAKE_SOURCE_DIR}/${PREFIX_DIR}/bin/x86_64-elf-ld"
   STAMP_DIR ${CMAKE_SOURCE_DIR}/${PREFIX_DIR}/_deps/binutils/stamp
   EXCLUDE_FROM_ALL 1
 )
@@ -36,7 +35,6 @@ ExternalProject_Add(
   INSTALL_COMMAND make install-gcc install-target-libgcc
   DOWNLOAD_EXTRACT_TIMESTAMP true
   BUILD_ALWAYS OFF
-  BUILD_BYPRODUCTS "${CMAKE_SOURCE_DIR}/${PREFIX_DIR}/bin/x86_64-elf-gcc"
   STAMP_DIR ${CMAKE_SOURCE_DIR}/${PREFIX_DIR}/_deps/gcc/stamp
   EXCLUDE_FROM_ALL 1
 )

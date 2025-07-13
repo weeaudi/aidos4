@@ -3,8 +3,39 @@ bits 16
 global start16_32
 
 extern start32_64
+extern __bss_start
+extern __end
 
 section .text
+
+; GDT - Global Descriptor Table (flat model, 32-bit)
+align 8
+gdt_start:
+gdt_null:                       ; Null descriptor (mandatory)
+    dq 0
+
+gdt_code:                       ; Code segment: base=0, limit=4GB, exec/read
+    dw 0xFFFF                   ; Limit (bits 0-15)
+    dw 0x0000                   ; Base (bits 0-15)
+    db 0x00                     ; Base (bits 16-23)
+    db 10011010b                ; Access: present, ring 0, code segment, readable
+    db 11001111b                ; Flags: granularity=4K, 32-bit, limit (bits 16-19)
+    db 0x00                     ; Base (bits 24-31)
+
+gdt_data:                       ; Data segment: base=0, limit=4GB, read/write
+    dw 0xFFFF
+    dw 0x0000
+    db 0x00
+    db 10010010b                ; Access: present, ring 0, data segment, writable
+    db 11001111b
+    db 0x00
+
+gdt_end:
+
+gdt_descriptor:
+    dw gdt_end - gdt_start - 1 ; Size of GDT - 1
+    dd gdt_start               ; Linear address of GDT
+
 start16_32:
     ; Start switch to 32 bit mode
 
@@ -44,7 +75,7 @@ start16_32:
     mov cr0, eax
 
     ; 5 - Jump to protected mode
-    jmp 08h:protected_start
+    jmp dword 0x08:protected_start
 
 [bits 32]
 protected_start:
@@ -55,6 +86,18 @@ protected_start:
     mov ss, ax
     mov fs, ax
     mov gs, ax
+
+    mov esi, __bss_start        ; start of BSS
+    mov edi, __end              ; end of BSS
+
+.clear_bss:
+    cmp esi, edi
+    jae .done
+    mov byte [esi], 0
+    inc esi
+    jmp .clear_bss
+
+.done:
 
     jmp start32_64
 
@@ -146,33 +189,7 @@ print_char:
 
 section .data
 
-; GDT - Global Descriptor Table (flat model, 32-bit)
-align 4
-gdt_start:
-gdt_null:                       ; Null descriptor (mandatory)
-    dq 0
 
-gdt_code:                       ; Code segment: base=0, limit=4GB, exec/read
-    dw 0xFFFF                   ; Limit (bits 0-15)
-    dw 0x0000                   ; Base (bits 0-15)
-    db 0x00                     ; Base (bits 16-23)
-    db 10011010b                ; Access: present, ring 0, code segment, readable
-    db 11001111b                ; Flags: granularity=4K, 32-bit, limit (bits 16-19)
-    db 0x00                     ; Base (bits 24-31)
-
-gdt_data:                       ; Data segment: base=0, limit=4GB, read/write
-    dw 0xFFFF
-    dw 0x0000
-    db 0x00
-    db 10010010b                ; Access: present, ring 0, data segment, writable
-    db 11001111b
-    db 0x00
-
-gdt_end:
-
-gdt_descriptor:
-    dw gdt_end - gdt_start - 1 ; Size of GDT - 1
-    dd gdt_start               ; Linear address of GDT
 
 section .rodata
 error_msg: db "ERROR: ", 0
