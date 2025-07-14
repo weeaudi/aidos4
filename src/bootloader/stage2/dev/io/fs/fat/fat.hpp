@@ -131,8 +131,9 @@ public:
     void shutdown();
 
     File* open(const char* path);
-    virtual uint32_t read(File* file, uint32_t byteCount, void* out);
-    virtual void close(File* file);
+    uint32_t read(File* file, uint32_t byteCount, void* out);
+    bool seek(File* file, uint32_t pointer);
+    void close(File* file);
 
 private:
     FAT_Data _data;

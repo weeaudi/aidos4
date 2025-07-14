@@ -20,6 +20,7 @@ public:
 
     virtual File* open(const char* path) = 0;
     virtual uint32_t read(File* file, uint32_t byteCount, void* out) = 0;
+    virtual bool seek(File* file, uint32_t position) = 0;
     virtual void close(File* file) = 0;
 
     virtual ~FileSystem() {}

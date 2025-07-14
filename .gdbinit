@@ -4,6 +4,7 @@ import os
 # Symbol files to load (relative to GDB working directory)
 symbol_files = [
     "build/src/bootloader/stage2/boot_stage2",
+    "build/src/kernel/kernel.elf",
     # Add more here
 ]
 

@@ -3,14 +3,50 @@
 #include "stdio.hpp"
 #include "globals.hpp"
 #include "dev/io/fs/fs.hpp"
+#include "memory.hpp"
+#include "elf.hpp"
 
 VGADriver vga;
 ATADrive ata;
+
+#pragma pack(push, 1)         
+
+struct MemoryRegion
+{
+    uint64_t Base;
+    uint64_t Length;
+    uint32_t type;
+    uint32_t extra;
+};
+
+
+struct BootInfo
+{
+    MemoryRegion    mem_map[2048 / sizeof(MemoryRegion)];
+    uint8_t         reserved[2048 - ((2048 / sizeof(MemoryRegion)) * sizeof(MemoryRegion))];  
+    uint32_t        mem_map_count;  
+    uint32_t        rsdp_addr;      
+    uint32_t        ebda;           
+    uint8_t         boot_drive;     
+};
+
+struct BootInfoExtended
+{
+    uint8_t memoryMapIndex;
+};
+
+#pragma pack(pop)
+
+extern "C" BootInfo boot_info;
+BootInfoExtended bootInfoExtended;
 
 #define HEADS 2
 #define SECTORS 18
 
 extern "C" void stage2_main() {
+
+    setup_paging();
+
     vga.initialize();
 
     if(!ata.initialize()){
@@ -25,16 +61,37 @@ extern "C" void stage2_main() {
         while(true){}
     }
 
-    File* hello = fs->open("/hello.txt");
+    File* hello = fs->open("/kernel.elf");
 
-    uint8_t buffer[512];
-
-    if(fs->read(hello, 512, &buffer) == 0){
-        stdio::printf(vga, "ERROR: could not read from hello.txt\n");
+    if(hello == nullptr) {
+        stdio::printf(vga, "ERROR: Could not load kernel.elf!");
         while(true){}
     }
 
+    void* kernelStart = (void*)0x0;
+
+    for (int i = 0; i < boot_info.mem_map_count; i++) {
+        if (boot_info.mem_map[i].Base >= 0x100000){
+            if (boot_info.mem_map[i].Length >= 0x100000){
+                if(boot_info.mem_map[i].type == 1){
+                    kernelStart = (void*)boot_info.mem_map[i].Base;
+                    bootInfoExtended.memoryMapIndex = i;
+                    break;
+                }
+            }
+        }
+    }
+
+    if(kernelStart == nullptr) {
+        stdio::printf(vga, "ERROR: Could not find any memory segments for kernel!");
+        while(true){}
+    }
+
+    void* entry = (void*)readElf(fs, hello, kernelStart);
+
     stdio::printf(vga, "Stage 2 cpp loaded!");
+
+    ((void (*)(BootInfo*, BootInfoExtended*))entry)(&boot_info, &bootInfoExtended); // VODO MAGIC (call the kernel);
 
     while(true){}
 }

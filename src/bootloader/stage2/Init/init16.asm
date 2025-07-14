@@ -1,12 +1,15 @@
 bits 16
 
 global start
+global boot_info
 
 extern start16_32
 
 section .text
 start:
     mov sp, 0xA000
+
+    mov [boot_info.boot_drive], dl
 
     mov si, text
     call print_char
@@ -460,7 +463,7 @@ type_str: db ' Type: 0x',0
 rsdp_sig: db "RSD PTR ", 0
 
 
-section .bss
+section .data
 boot_info:
     align 16
     .mem_map:        resb 2048

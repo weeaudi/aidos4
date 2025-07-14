@@ -75,6 +75,8 @@ start:
 
     call disk_read
 
+    mov dx, [boot_drive]
+
     mov eax, [stage_2_info.start]
     jmp eax
 

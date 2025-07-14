@@ -310,3 +310,38 @@ void FAT12FileSystem::close(File* file) {
         _data.OpenedFiles[file->handle].Opened = false;
     }
 }
+
+bool FAT12FileSystem::seek(File* file, uint32_t position) {
+    // Validate bounds
+    if (!file || (!file->is_directory && position > file->size))
+        return false;
+
+    // Get file data
+    FAT_FileData* fd = (file->handle == ROOT_DIRECTORY_HANDLE)
+                           ? &_data.RootDirectory
+                           : &_data.OpenedFiles[file->handle];
+
+    if (!fd->Opened)
+        return false;
+
+    // Set new position
+    fd->Public.position = position;
+
+    // Calculate new cluster/sector
+    uint32_t cluster = fd->FirstCluster;
+    uint32_t offset = position;
+    uint32_t clusterSize = _data.BS.BootSector.sectors_per_cluster * SECTOR_SIZE;
+
+    while (offset >= clusterSize) {
+        cluster = NextCluster(cluster);
+        if (cluster >= 0xFFFFFFF8)
+            return false;
+        offset -= clusterSize;
+    }
+
+    fd->CurrentCluster = cluster;
+    fd->CurrentSectorInCluster = offset / SECTOR_SIZE;
+
+    // Read sector into buffer
+    return disk->read_sectors(clusterToLba(cluster) + fd->CurrentSectorInCluster, 1, fd->Buffer);
+}
