@@ -165,7 +165,7 @@ check_disk_extended:
     jne .no_disk_extended
 
     ; Extended disk functions are present.
-    mov byte [disk_extended_present], 0
+    mov byte [disk_extended_present], 1
     jmp .after_disk_check
 
 .no_disk_extended:
