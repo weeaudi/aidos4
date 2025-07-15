@@ -10,7 +10,7 @@ set(IMAGE_FILE ${CMAKE_CURRENT_BINARY_DIR}/boot.img)
 set(VDI_IMAGE ${CMAKE_CURRENT_BINARY_DIR}/boot.vdi)
 
 math(EXPR STAGE2_SECTORS "((${STAGE2_SIZE} + 511) / 512)")
-math(EXPR RESERVED_SECTORS "${STAGE2_SECTORS} + 20")  # 2 = 1 for stage1 + 1 extra buffer
+math(EXPR RESERVED_SECTORS "${STAGE2_SECTORS} + 20")  # 20 reserved sectors total
 
 set(DISK_SIZE_SECTORS 2880)  # 1.44 mb floppy
 #set(DISK_SIZE_SECTORS 131072)  # 64mib hhd
