@@ -33,6 +33,7 @@ struct BootInfo
 struct BootInfoExtended
 {
     uint8_t memoryMapIndex;
+    uint64_t* PML4Address;
 };
 
 #pragma pack(pop)
@@ -46,6 +47,8 @@ BootInfoExtended bootInfoExtended;
 extern "C" void stage2_main() {
 
     setup_paging();
+
+    bootInfoExtended.PML4Address = (uint64_t*)getPML4();
 
     vga.initialize();
 

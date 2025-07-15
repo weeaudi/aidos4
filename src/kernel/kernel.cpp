@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include "memory.hpp"
-
+#include "dev/acpi/acpi.hpp"
 
 
 #pragma pack(push, 1)         
@@ -27,6 +27,7 @@ struct BootInfo
 struct BootInfoExtended
 {
     uint8_t memoryMapIndex;
+    uint64_t* PML4Address;
 };
 #pragma pack(pop)
 
@@ -37,6 +38,10 @@ extern "C" void main(BootInfo* bootInfo, BootInfoExtended* bootInfoExtended) {
 
     memcpy(&bootInfoStatic, bootInfo, sizeof(BootInfo));
     memcpy(&bootInfoExtendedStatic, bootInfoExtended, sizeof(BootInfoExtended));
+
+    setup_paging(bootInfoExtendedStatic.PML4Address);
+
+    ACPI acpi = ACPI((uint32_t*)bootInfoStatic.rsdp_addr);
 
     while(true){}
 }

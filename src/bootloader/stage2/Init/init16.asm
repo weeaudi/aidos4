@@ -466,8 +466,8 @@ rsdp_sig: db "RSD PTR ", 0
 section .data
 boot_info:
     align 16
-    .mem_map:        resb 2048
-    .mem_map_count:  resd 1
-    .rsdp_addr:      resd 1
-    .ebda:           resd 1
-    .boot_drive:     resb 1
+    .mem_map:        times 2048 db 0
+    .mem_map_count:  dd 0
+    .rsdp_addr:      dd 0
+    .ebda:           dd 0
+    .boot_drive:     db 0

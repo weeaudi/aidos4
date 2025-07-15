@@ -13,7 +13,7 @@ SECTIONS
 
     .heap ALIGN(8) : {
         __heap_start = .;
-        . = . + 32K;      /* Reserve 32 KiB */
+        . = . + 64K;      /* Reserve 32 KiB */
         __heap_end = .;
     }
 

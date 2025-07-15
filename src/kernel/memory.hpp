@@ -33,19 +33,34 @@ inline void* memset(void* ptr, int value, size_t num) {
     return ptr;
 }
 
-// constexpr uint64_t PAGE_PRESENT = 1ull << 0;
-// constexpr uint64_t PAGE_RW      = 1ull << 1;
-// constexpr uint64_t PAGE_USER    = 1ull << 2;
-// constexpr uint64_t PAGE_PSE     = 1ull << 7;  // For 2MiB pages
+extern "C" {
+    extern uint8_t __heap_start;
+    extern uint8_t __heap_end;
+}
 
-// constexpr uint64_t PAGE_SIZE_4K = 0x1000;
-// constexpr uint64_t PAGE_SIZE_2M = 0x200000;
+void* kmalloc(size_t size, size_t align = 8);
+void* operator new(size_t size);
+void* operator new[](size_t size);
+void operator delete(void* ptr) noexcept;
+void operator delete[](void* ptr) noexcept;
+void operator delete(void* ptr, size_t size) noexcept;
+void operator delete[](void* ptr, size_t size) noexcept;
 
-// using PageTable = uint64_t[512];
+constexpr uint64_t PAGE_PRESENT = 1ull << 0;
+constexpr uint64_t PAGE_RW      = 1ull << 1;
+constexpr uint64_t PAGE_USER    = 1ull << 2;
+constexpr uint64_t PAGE_PSE     = 1ull << 7;  // For 2MiB pages
 
-// extern "C" void load_cr3(uint64_t); // Assembly helper
+constexpr uint64_t PAGE_SIZE_4K = 0x1000;
+constexpr uint64_t PAGE_SIZE_2M = 0x200000;
 
-// void setup_paging();
-// PageTable* get_or_create_table(PageTable* parent, uint16_t index);
-// void map_4k(uint64_t virt, uint64_t phys, uint64_t count);
-// void map_2m(uint64_t virt, uint64_t phys, uint64_t count);
+using PageTable = uint64_t[512];
+
+extern "C" void load_cr3(uint64_t); // Assembly helper
+
+void setup_paging(uint64_t* PML4Address);
+PageTable* get_or_create_table(PageTable* parent, uint16_t index);
+void map_4k(uint64_t virt, uint64_t phys, uint64_t count);
+void map_2m(uint64_t virt, uint64_t phys, uint64_t count);
+void unmap_4k(uint64_t virt, uint64_t count);
+void unmap_2m(uint64_t virt, uint64_t count);

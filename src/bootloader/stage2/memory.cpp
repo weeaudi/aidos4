@@ -61,6 +61,10 @@ void setup_paging() {
     //   - Set CR0.PG = 1
 }
 
+PageTable* getPML4(){
+    return &pml4;
+}
+
 PageTable* get_or_create_table(PageTable* parent, uint16_t index) {
     if (!((*parent)[index] & PAGE_PRESENT)) {
         PageTable* new_table = (PageTable*)kmalloc(sizeof(PageTable), 4096);

@@ -1,6 +1,7 @@
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
+#include <stddef.h>
 
 inline int memcmp(const void* ptr1, const void* ptr2, size_t num) {
     const unsigned char* a = static_cast<const unsigned char*>(ptr1);
@@ -41,6 +42,8 @@ extern "C" {
 void* kmalloc(size_t size, size_t align = 8);
 void* operator new(size_t size);
 void* operator new[](size_t size);
+void* operator new(size_t size, std::align_val_t a);
+void* operator new[](size_t size, std::align_val_t a);
 void operator delete(void* ptr) noexcept;
 void operator delete[](void* ptr) noexcept;
 void operator delete(void* ptr, size_t size) noexcept;
@@ -59,6 +62,7 @@ using PageTable = uint64_t[512];
 extern "C" void load_cr3(uint64_t); // Assembly helper
 
 void setup_paging();
+PageTable* getPML4();
 PageTable* get_or_create_table(PageTable* parent, uint16_t index);
 void map_4k(uint64_t virt, uint64_t phys, uint64_t count);
 void map_2m(uint64_t virt, uint64_t phys, uint64_t count);
