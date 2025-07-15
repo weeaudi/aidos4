@@ -55,7 +55,7 @@ start:
 
     call disk_get_geometry
 
-    ; read the second sector which should contain importiant info about stage 2
+    ; read the second sector which should contain important info about stage 2
 
     mov ax, 0
     mov es, ax
