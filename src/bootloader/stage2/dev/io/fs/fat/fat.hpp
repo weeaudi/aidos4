@@ -1,13 +1,21 @@
 #include "dev/io/fs/fs.hpp"
 
-#define SECTOR_SIZE 512
-#define MAX_PATH_SIZE 256
-#define MAX_FILE_HANDLES 10
+/**
+ * @file fat.hpp
+ * @brief Minimal FAT12 file system implementation used by the bootloader.
+ */
+
+#define SECTOR_SIZE 512       ///< Size of a disk sector in bytes
+#define MAX_PATH_SIZE 256     ///< Maximum path length supported
+#define MAX_FILE_HANDLES 10   ///< Maximum number of simultaneously opened files
 #define ROOT_DIRECTORY_HANDLE (MAX_FILE_HANDLES + 1)
-#define FAT_CACHE_SIZE 5
+#define FAT_CACHE_SIZE 5      ///< Number of sectors kept in the FAT cache
 
 #pragma pack(push, 1)
 
+/**
+ * @brief On-disk layout of the FAT boot sector.
+ */
 struct FAT_BootSector {
     // --- Jump and OEM Name ---
     uint8_t     jump_instruction[3];      // 0x00
@@ -63,6 +71,9 @@ struct FAT_BootSector {
     uint16_t    signature;                 // 0x1FE (should be 0xAA55)
 };
 
+/**
+ * @brief Directory entry as stored in the FAT file system.
+ */
 struct FAT_DirectoryEntry
 {
     uint8_t Name[11];
@@ -79,6 +90,9 @@ struct FAT_DirectoryEntry
     uint32_t Size;
 };
 
+/**
+ * @brief Attribute flags used by FAT directory entries.
+ */
 enum FAT_Attributes
 {
     FAT_ATTRIBUTE_READ_ONLY         = 0x01,
@@ -92,6 +106,9 @@ enum FAT_Attributes
 
 #pragma pack(pop)
 
+/**
+ * @brief Internal state associated with an open file.
+ */
 typedef struct
 {
     uint8_t Buffer[SECTOR_SIZE];
@@ -103,6 +120,9 @@ typedef struct
 
 } FAT_FileData;
 
+/**
+ * @brief Global state for a mounted FAT12 file system.
+ */
 typedef struct
 {
     union
@@ -120,19 +140,30 @@ typedef struct
 
 } FAT_Data;
 
+/**
+ * @brief FAT12 file system driver used by the bootloader.
+ */
 class FAT12FileSystem : public FileSystem {
 public:
 
+    /** Construct an empty file system object. */
     FAT12FileSystem();
 
+    /** Attempt to detect a FAT12 file system on the given disk. */
     static FileSystem* detect(BlockIODevice* disk);
 
+    /** Initialise internal structures. */
     bool initialize();
+    /** Release any resources held by the file system. */
     void shutdown();
 
+    /** Open a file at the given path. */
     File* open(const char* path);
+    /** Read data from a file. */
     uint32_t read(File* file, uint32_t byteCount, void* out);
+    /** Move the read pointer of a file. */
     bool seek(File* file, uint32_t pointer);
+    /** Close an opened file. */
     void close(File* file);
 
 private:
