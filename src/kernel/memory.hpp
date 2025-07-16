@@ -69,8 +69,14 @@ using PageTable = uint64_t[512];
 
 extern "C" void load_cr3(uint64_t); ///< Assembly helper to load CR3
 
-/// Initialise paging using the provided PML4.
-void setup_paging(uint64_t* PML4Address);
+/// Virtual base where the kernel is mapped.
+constexpr uint64_t KERNEL_BASE = 0xFFFF'8000'0000'0000ULL;
+
+/// Offset between physical memory and the higher half mapping.
+extern uint64_t KERNEL_OFFSET;
+
+/// Initialise paging using the provided PML4 and higher half offset.
+void setup_paging(uint64_t* PML4Address, uint64_t kernelOffset);
 PageTable* get_or_create_table(PageTable* parent, uint16_t index);
 void map_4k(uint64_t virt, uint64_t phys, uint64_t count);
 void map_2m(uint64_t virt, uint64_t phys, uint64_t count);

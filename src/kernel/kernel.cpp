@@ -40,7 +40,8 @@ extern "C" void main(BootInfo* bootInfo, BootInfoExtended* bootInfoExtended) {
     memcpy(&bootInfoStatic, bootInfo, sizeof(BootInfo));
     memcpy(&bootInfoExtendedStatic, bootInfoExtended, sizeof(BootInfoExtended));
 
-    setup_paging(bootInfoExtendedStatic.PML4Address);
+    uint64_t kernelOffset = KERNEL_BASE - bootInfoExtendedStatic.kernelPhysicalBase;
+    setup_paging(bootInfoExtendedStatic.PML4Address, kernelOffset);
 
     ACPI acpi = ACPI((uint32_t*)bootInfoStatic.rsdp_addr);
 
