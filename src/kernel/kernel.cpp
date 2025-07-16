@@ -28,6 +28,7 @@ struct BootInfoExtended
 {
     uint8_t memoryMapIndex;
     uint64_t* PML4Address;
+    uint64_t kernelPhysicalBase;
 };
 #pragma pack(pop)
 

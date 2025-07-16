@@ -35,7 +35,7 @@ enum {
     // others ignored for now
 };
 
-uint64_t readElf(FileSystem* fs, File* file, void* data) {
+ElfInfo readElf(FileSystem* fs, File* file, void* data) {
     Elf64_Ehdr elfHeader;
     fs->seek(file, 0);
     fs->read(file, sizeof(elfHeader), &elfHeader);
@@ -45,8 +45,10 @@ uint64_t readElf(FileSystem* fs, File* file, void* data) {
           elfHeader.e_ident[1] == 'E' &&
           elfHeader.e_ident[2] == 'L' &&
           elfHeader.e_ident[3] == 'F')) {
-        return 0;
+        return {0, 0};
     }
+
+    uint64_t physBase = (uint64_t)-1;
 
     for (int i = 0; i < elfHeader.e_phnum; ++i) {
         fs->seek(file, elfHeader.e_phoff + i * elfHeader.e_phentsize);
@@ -58,6 +60,9 @@ uint64_t readElf(FileSystem* fs, File* file, void* data) {
 
         // Compute physical location inside 'data' for this segment
         uint64_t phys = reinterpret_cast<uint64_t>(data) + phdr.p_paddr;
+
+        if (phys < physBase)
+            physBase = phys;
         uint64_t virt = phdr.p_vaddr;
         uint64_t size = phdr.p_memsz;
 
@@ -81,5 +86,8 @@ uint64_t readElf(FileSystem* fs, File* file, void* data) {
         }
     }
 
-    return elfHeader.e_entry;
+    ElfInfo info{};
+    info.entry = elfHeader.e_entry;
+    info.phys_base = (physBase == (uint64_t)-1) ? (uint64_t)data : physBase;
+    return info;
 }

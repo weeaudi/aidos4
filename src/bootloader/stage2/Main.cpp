@@ -34,6 +34,7 @@ struct BootInfoExtended
 {
     uint8_t memoryMapIndex;
     uint64_t* PML4Address;
+    uint64_t kernelPhysicalBase;
 };
 
 #pragma pack(pop)
@@ -90,7 +91,9 @@ extern "C" void stage2_main() {
         while(true){}
     }
 
-    void* entry = (void*)readElf(fs, hello, kernelStart);
+    ElfInfo info = readElf(fs, hello, kernelStart);
+    bootInfoExtended.kernelPhysicalBase = info.phys_base;
+    void* entry = (void*)info.entry;
 
     stdio::printf(vga, "Stage 2 cpp loaded!");
 
