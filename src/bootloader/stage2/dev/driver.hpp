@@ -1,13 +1,31 @@
 #pragma once
 
+/**
+ * @file driver.hpp
+ * @brief Base interface for all drivers.
+ */
+
+/**
+ * @brief Abstract base class for hardware or software drivers.
+ */
 class Driver {
 public:
 
-    // Initialize the driver (e.g. hardware init)
+    /**
+     * @brief Initialize the driver.
+     *
+     * This is typically used to perform any hardware or resource
+     * initialization required by the driver.
+     *
+     * @return true on success, false on failure.
+     */
     virtual bool initialize() = 0;
 
-    // Reset or shutdown driver
+    /**
+     * @brief Shutdown or reset the driver.
+     */
     virtual void shutdown() = 0;
 
-    ~Driver() {}
+    /** Virtual destructor. */
+    virtual ~Driver() {}
 };

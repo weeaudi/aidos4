@@ -1,5 +1,13 @@
 #include <stdint.h>
 
+/**
+ * @file acpi.hpp
+ * @brief Basic ACPI structures and parser.
+ */
+
+/**
+ * @brief Root System Description Pointer structure.
+ */
 struct AcpiRsdp {
     char signature[8];
     uint8_t checksum;
@@ -16,6 +24,7 @@ struct AcpiRsdp {
 
 class ACPI {
 public:
+    /** Construct an ACPI parser using the given RSDP address. */
     ACPI(uint32_t* RSDP);
 
 private:
