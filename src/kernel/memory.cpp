@@ -146,6 +146,9 @@ void setup_paging(uint64_t* PML4Address, uint64_t kernelOffset) {
 PageTable* get_or_create_table(PageTable* parent, uint16_t index) {
     if (!((*parent)[index] & PAGE_PRESENT)) {
         PageTable* new_table = (PageTable*)kmalloc(sizeof(PageTable), 4096);
+        if (!new_table) {
+            return nullptr;
+        }
         memset(new_table, 0, 4096);
         (*parent)[index] = ((uint64_t)new_table - KERNEL_OFFSET) | PAGE_PRESENT | PAGE_RW;
         return new_table;
