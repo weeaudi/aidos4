@@ -44,7 +44,7 @@ constexpr uint64_t PAGE_4K       = 0x1000;
 constexpr uint64_t PAGE_2M       = 0x200000;               
 constexpr uint64_t PAGE_1G       = 0x40000000;
 
-constexpr uint64_t KERNEL_BASE = 0xFFFF'8000'0000'0000ULL;
+uint64_t KERNEL_OFFSET = 0;
 uint64_t virt_to_phys(uint64_t vaddr, uint64_t* oldPML4);
 
 
@@ -93,7 +93,8 @@ uint64_t virt_to_phys(uint64_t vaddr, uint64_t* oldPML4)
     return (pe & ADDR_MASK) + page_off;
 }
 
-void setup_paging(uint64_t* PML4Address) {
+void setup_paging(uint64_t* PML4Address, uint64_t kernelOffset) {
+    KERNEL_OFFSET = kernelOffset;
     memcpy(&pml4, PML4Address, sizeof(PageTable));
 
     for(int i = 0; i < 256; i++) {
@@ -145,11 +146,14 @@ void setup_paging(uint64_t* PML4Address) {
 PageTable* get_or_create_table(PageTable* parent, uint16_t index) {
     if (!((*parent)[index] & PAGE_PRESENT)) {
         PageTable* new_table = (PageTable*)kmalloc(sizeof(PageTable), 4096);
+        if (!new_table) {
+            return nullptr;
+        }
         memset(new_table, 0, 4096);
-        (*parent)[index] = (uint64_t)new_table | PAGE_PRESENT | PAGE_RW;
+        (*parent)[index] = ((uint64_t)new_table - KERNEL_OFFSET) | PAGE_PRESENT | PAGE_RW;
         return new_table;
     } else {
-        return (PageTable*)((*parent)[index] & ~0xFFF);
+        return (PageTable*)(((*parent)[index] & ~0xFFF) + KERNEL_OFFSET);
     }
 }
 
@@ -191,7 +195,7 @@ PageTable* get_table_if_exists(PageTable* parent, uint16_t index) {
     if (!( (*parent)[index] & PAGE_PRESENT ))
         return nullptr;
 
-    return reinterpret_cast<PageTable*>((*parent)[index] & ~0xFFFULL);
+    return reinterpret_cast<PageTable*>(((*parent)[index] & ~0xFFFULL) + KERNEL_OFFSET);
 }
 
 inline void flush_tlb_single(uint64_t va) {
